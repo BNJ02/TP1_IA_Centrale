@@ -5,6 +5,7 @@
 # Date: 2018-10-03
 
 from copy import deepcopy
+import heapq
 from random import random
 from sys import stdout
 import time
@@ -215,6 +216,59 @@ class world:
         print(f"Max size of the waiting list : {max_waiting_size}")
         return (False, [])
 
+    # Dijkstra's algorithm
+    # starting from tile number s0, find a path to tile number t
+    # return (r, path, cost) where r is true if such a path exists, false otherwise
+    # path contains the path if it exists and cost contains the cost of the path
+    def dijkstra(self, s0, t):
+        """
+        Implémente l'algorithme de Dijkstra basé sur l'image fournie.
+        Trouve le chemin avec le coût minimal de s0 à t.
+        
+        s0: Indice de départ
+        t: Indice d'arrivée
+        """
+        # Initialisation des structures
+        pred = {s: None for s in range(self.L * self.H)}  # Pas de prédécesseur au départ
+        cost = {s: float('inf') for s in range(self.L * self.H)}  # Coût initial infini
+        cost[s0] = 0  # Coût de la case de départ
+        W = [(0, s0)]  # File de priorité initiale avec s0
+        r = False  # Pas encore trouvé
+
+        while W and not r:
+            # Extraire l'élément avec le coût minimal
+            current_cost, s = heapq.heappop(W)
+
+            # Vérifier si nous avons atteint la cible
+            if s == t:
+                r = True
+            else:
+                # Parcourir les successeurs
+                for s_prime in self.successors(s):
+                    new_cost = cost[s] + self.costs[s_prime]
+                    if new_cost < cost[s_prime]:  # Si un meilleur chemin est trouvé
+                        cost[s_prime] = new_cost
+                        pred[s_prime] = s  # Mémoriser le prédécesseur
+                        heapq.heappush(W, (new_cost, s_prime))  # Ajouter à la file
+
+        # Reconstruction du chemin
+        if r:
+            path = []
+            current = t
+            while current is not None:
+                path.append(current)
+                current = pred[current]
+            path.reverse()
+
+            # Afficher les résultats
+            print(f"Chemin trouvé : {path}")
+            print(f"Coût total du chemin : {cost[t]}")
+            print(f"Nombre de tuiles explorées : {len(pred) - list(pred.values()).count(None)}")
+            return True, path, cost[t]
+        else:
+            print("Aucun chemin trouvé.")
+            return False, [], float('inf')
+
 
 # create a world
 w = world(20, 10, 0.2)
@@ -235,11 +289,19 @@ print("Goal tile:", goal_tile)
 #     w.dfs(start_tile, goal_tile)  # Afficher les statistiques
 
 ##### Résoudre avec BFS #####
-result, path = w.bfs(start_tile, goal_tile)
+# result, path = w.bfs(start_tile, goal_tile)
+
+# if result:
+#     w.animate_path(path)
+#     w.bfs(start_tile, goal_tile)  # Afficher les statistiques
+
+##### Résoudre avec Dijkstra #####
+result, path, cost = w.dijkstra(start_tile, goal_tile)
 
 if result:
     w.animate_path(path)
-    w.bfs(start_tile, goal_tile)  # Afficher les statistiques
+    w.dijkstra(start_tile, goal_tile)  # Afficher les statistiques
 
 ##### Display the initial world ##### 
+print("\nInitial world:")
 w.display()
