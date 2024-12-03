@@ -89,7 +89,51 @@ class world:
             self._display_animation(grid, costs)
             time.sleep(0.2)  # Pause pour l'animation
 
+    # Display the final path
+    def display_final_path(self, path):
+        """
+        Affiche le monde avec le chemin final spécifié en paramètre.
+        Le chemin est affiché avec des couleurs spéciales (vert pour le chemin).
+        """
+        grid = deepcopy(self.w)  # Copie de la grille des murs
+        costs = deepcopy(self.costs)  # Copie de la grille des coûts
+
+        # Marquer chaque tile du chemin avec une couleur spécifique (chemin = 'o')
+        for step in path:
+            x = step // self.L
+            y = step % self.L
+            grid[x * self.L + y] = 2  # Marquer le chemin
+
+        self._display(grid, costs)
+
     # Private method to display the grid
+    def _display(self, grid, costs):
+        """
+        Affiche la grille avec les coûts.
+        - '.' pour une tuile vide à coût normal
+        - '*' pour une tuile à coût élevé
+        - 'W' pour un mur
+        - 'o' pour le chemin suivi (en vert)
+        """
+
+        # Parcourir la grille et afficher chaque tuile
+        for i in range(self.H):
+            for j in range(self.L):
+                idx = i * self.L + j
+                tile = grid[idx]
+
+                # Identifier le type de tuile
+                if tile == 1:
+                    stdout.write('\033[31mW\033[0m')  # Rouge pour les murs
+                elif tile == 2:
+                    stdout.write('\033[32mo\033[0m')  # Vert pour le chemin
+                elif costs[idx] > 1:
+                    stdout.write('\033[33m*\033[0m')  # Jaune pour les coûts élevés
+                else:
+                    stdout.write('\033[37m.\033[0m')  # Gris pour les cases normales
+            stdout.write('\n')  # Nouvelle ligne après chaque ligne de la grille
+    
+    # Private method to display the grid with animation
     def _display_animation(self, grid, costs):
         """
         Affiche une version animée de la grille avec les coûts.
@@ -99,6 +143,8 @@ class world:
         - 'o' pour le chemin suivi (en vert)
         """
         stdout.write("\033[H\033[J")  # Efface la console
+
+        # Parcourir la grille et afficher chaque tuile
         for i in range(self.H):
             for j in range(self.L):
                 idx = i * self.L + j
@@ -148,8 +194,8 @@ class world:
                 path.reverse()
 
                 # Afficher les résultats
-                print(f"Path found : {path}")
                 print(f"Length of path : {len(path)}")
+                print(f"Total cost of the path : {sum(self.costs[step] for step in path)}")
                 print(f"Number of visited tiles : {len(visited)}")
                 print(f"Max size of the waiting list : {max_waiting_size}")
                 return (True, path)
@@ -163,8 +209,6 @@ class world:
 
         # If we exit the loop, no path was found
         print("No path found.")
-        print(f"Number of visited tiles : {len(visited)}")
-        print(f"Max size of the waiting list : {max_waiting_size}")
         return (False, [])
     
     # Breadth-first search
@@ -198,8 +242,8 @@ class world:
                 path.reverse()
 
                 # Display the results
-                print(f"Path found : {path}")
                 print(f"Length of path : {len(path)}")
+                print(f"Total cost of the path : {sum(self.costs[step] for step in path)}")
                 print(f"Number of visited tiles : {len(visited)}")
                 print(f"Max size of the waiting list : {max_waiting_size}")
                 return (True, path)
@@ -212,8 +256,6 @@ class world:
 
         # If we exit the loop, no path was found
         print("No path found.")
-        print(f"Number of visited tiles : {len(visited)}")
-        print(f"Max size of the waiting list : {max_waiting_size}")
         return (False, [])
 
     # Dijkstra's algorithm
@@ -233,9 +275,11 @@ class world:
         cost = {s: float('inf') for s in range(self.L * self.H)}  # Coût initial infini
         cost[s0] = 0  # Coût de la case de départ
         W = [(0, s0)]  # File de priorité initiale avec s0
-        r = False  # Pas encore trouvé
+        r = False  # Pas encore trouvé de chemin
+        max_waiting_size = 0 # Max size of the waiting list
 
         while W and not r:
+            max_waiting_size = max(max_waiting_size, len(W))  # Update the max size
             # Extraire l'élément avec le coût minimal
             current_cost, s = heapq.heappop(W)
 
@@ -261,47 +305,110 @@ class world:
             path.reverse()
 
             # Afficher les résultats
-            print(f"Chemin trouvé : {path}")
-            print(f"Coût total du chemin : {cost[t]}")
-            print(f"Nombre de tuiles explorées : {len(pred) - list(pred.values()).count(None)}")
+            print("Length of path : ", len(path))
+            print(f"Total cost of the path : {sum(self.costs[step] for step in path)}")
+            print(f"Number of visited tiles : {len(pred) - list(pred.values()).count(None)}")
             return True, path, cost[t]
         else:
-            print("Aucun chemin trouvé.")
+            print("No path found.")
             return False, [], float('inf')
 
+    # A* algorithm
+    # starting from tile number s0, find a path to tile number t
+    # return (r, path) where r is true if such a path exists, false otherwise
+    # and path contains the path if it exists
+    def a_star(self, s0, t):
+        open_list = []
+        closed_list = set()
+        g = {s0: 0}  # coût pour atteindre chaque nœud
+        h = {s0: self.manhattan_heuristic(s0, t)}  # heuristique
+        f = {s0: g[s0] + h[s0]}  # coût total
+        came_from = {}  # pour reconstruire le chemin
 
-# create a world
-w = world(20, 10, 0.2)
+        heapq.heappush(open_list, (f[s0], s0))
 
-# # print the tile numbers of the successors of the starting tile (1, 1)
-# print(w.successors(w.L + 1))
+        while open_list:
+            _, current = heapq.heappop(open_list)
 
-start_tile = w.L + 1  # Tile (1, 1)
-goal_tile = (w.H - 2) * w.L + (w.L - 2)  # Tile (H-2, L-2)
-print("Initial tile:", start_tile)
-print("Goal tile:", goal_tile)
+            if current == t:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.reverse()
 
-##### Résoudre avec DFS #####
-# result, path = w.dfs(start_tile, goal_tile)
+                # Ajouter le nœud de départ à l'élément 0
+                path.insert(0, s0)
 
-# if result:
-#     w.animate_path(path)   
-#     w.dfs(start_tile, goal_tile)  # Afficher les statistiques
+                # Display the results
+                print(f"Length of path : {len(path)}")
+                print(f"Total cost of the path : {sum(self.costs[step] for step in path)}")
+                print(f"Number of visited tiles : {len(closed_list)}")
 
-##### Résoudre avec BFS #####
-# result, path = w.bfs(start_tile, goal_tile)
+                return True, path
 
-# if result:
-#     w.animate_path(path)
-#     w.bfs(start_tile, goal_tile)  # Afficher les statistiques
+            closed_list.add(current)
 
-##### Résoudre avec Dijkstra #####
-result, path, cost = w.dijkstra(start_tile, goal_tile)
+            for neighbor in self.successors(current):
+                if neighbor in closed_list:
+                    continue
+                tentative_g = g[current] + self.costs[neighbor]
+                if neighbor not in g or tentative_g < g[neighbor]:
+                    came_from[neighbor] = current
+                    g[neighbor] = tentative_g
+                    h[neighbor] = self.manhattan_heuristic(neighbor, t)
+                    f[neighbor] = g[neighbor] + h[neighbor]
+                    if not any(neighbor == item[1] for item in open_list):
+                        heapq.heappush(open_list, (f[neighbor], neighbor))
 
-if result:
-    w.animate_path(path)
-    w.dijkstra(start_tile, goal_tile)  # Afficher les statistiques
+        return False, []
 
-##### Display the initial world ##### 
-print("\nInitial world:")
-w.display()
+    def manhattan_heuristic(self, current, target):
+        cx, cy = divmod(current, self.L)
+        tx, ty = divmod(target, self.L)
+        return abs(cx - tx) + abs(cy - ty)
+
+# Entry point of the program
+if __name__ == "__main__":
+    # create a world
+    w = world(20, 10, 0.2)
+
+    ##### Display the initial world ##### 
+    print("\nInitial world:")
+    w.display_final_path([])  # Display the world without a path
+
+    ##### Define the start and goal tiles #####
+    start_tile = w.L + 1  # Tile (1, 1)
+    goal_tile = (w.H - 2) * w.L + (w.L - 2)  # Tile (H-2, L-2)
+    print("Initial tile:", start_tile)
+    print("Goal tile:", goal_tile)
+
+
+    ##### Résoudre avec DFS #####
+    print("\n---Depth-first search---")
+    result, path = w.dfs(start_tile, goal_tile)
+
+    if result:
+        w.display_final_path(path)   
+
+    ##### Résoudre avec BFS #####
+    print("\n---Breadth-first search---")
+    result, path = w.bfs(start_tile, goal_tile)
+
+    if result:
+        w.display_final_path(path)
+
+    ##### Résoudre avec Dijkstra #####
+    print("\n---Dijkstra's algorithm---")
+    result, path, cost = w.dijkstra(start_tile, goal_tile)
+
+    if result:
+        w.display_final_path(path)
+
+    ##### Résoudre avec A* #####
+    print("\n---A* algorithm---")
+    result, path = w.a_star(start_tile, goal_tile)
+
+    if result:
+        w.display_final_path(path)
+    
