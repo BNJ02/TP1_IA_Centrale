@@ -1,4 +1,4 @@
-import heapq
+import heapq # Pour implémenter la file de priorité
 from itertools import count
 
 class BridgeState:
